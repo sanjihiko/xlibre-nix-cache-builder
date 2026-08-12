@@ -1,1 +1,1 @@
-# xlibre-nix-cache-builder
+# This is a personal vibecoded repo, beware.
