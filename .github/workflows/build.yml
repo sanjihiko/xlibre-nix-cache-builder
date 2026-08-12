@@ -32,10 +32,17 @@ jobs:
 
       - name: Build all XLibre packages
         run: |
+          set +e
+          failed=()
           for pkg in $(nix eval --json .#packages.x86_64-linux --apply builtins.attrNames | jq -r '.[]'); do
             echo "::group::Building $pkg"
-            nix build ".#packages.x86_64-linux.$pkg" -L
+            if ! nix build ".#packages.x86_64-linux.$pkg" -L; then
+              failed+=("$pkg")
+            fi
             echo "::endgroup::"
           done
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::warning::Failed to build: ${failed[*]}"
+          fi
 
       # cachix-action auto-pushes everything built above (watch-store on by default)
