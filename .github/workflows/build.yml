@@ -1,0 +1,36 @@
+name: Build XLibre and publish to Cachix
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+  schedule:
+    # weekly, to track upstream overlay updates
+    - cron: '0 6 * * 0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v15
+        with:
+          name: sanjihiko-xlibre
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Update flake.lock
+        run: nix flake update xlibre-overlay
+
+      - name: Build XLibre xserver
+        run: nix build .#packages.x86_64-linux.xlibre-xserver -L
+
+      # cachix-action auto-pushes everything built above (watch-store on by default)
