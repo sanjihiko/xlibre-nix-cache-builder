@@ -30,7 +30,12 @@ jobs:
       - name: Update flake.lock
         run: nix flake update xlibre-overlay
 
-      - name: Build XLibre xserver
-        run: nix build .#packages.x86_64-linux.xlibre-xserver -L
+      - name: Build all XLibre packages
+        run: |
+          for pkg in $(nix eval --json .#packages.x86_64-linux --apply builtins.attrNames | jq -r '.[]'); do
+            echo "::group::Building $pkg"
+            nix build ".#packages.x86_64-linux.$pkg" -L
+            echo "::endgroup::"
+          done
 
       # cachix-action auto-pushes everything built above (watch-store on by default)
