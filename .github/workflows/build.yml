@@ -10,7 +10,7 @@ on:
         type: boolean
         default: false
   schedule:
-    # weekly, rebuilds from the pinned flake.lock (does not advance it)
+    # weekly scheduled rebuild
     - cron: '0 6 * * 0'
 
 jobs:
@@ -34,12 +34,17 @@ jobs:
           name: sanjihiko-xlibre
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
-      - name: Lock flake inputs
+      - name: Lock or update flake inputs
         run: |
-          if [ "${{ inputs.update_inputs }}" = "true" ]; then
-            nix flake update
-          else
+          # If triggered manually with update_inputs = false, preserve the lockfile.
+          # Otherwise (scheduled runs, pushes, or manual runs with update_inputs = true),
+          # fetch the latest inputs to keep the cache up to date.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.update_inputs }}" = "false" ]; then
+            echo "Preserving pinned flake.lock..."
             nix flake lock
+          else
+            echo "Updating flake inputs..."
+            nix flake update
           fi
 
       - name: Build all XLibre packages
