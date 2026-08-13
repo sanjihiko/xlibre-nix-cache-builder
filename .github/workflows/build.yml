@@ -57,7 +57,7 @@ jobs:
           failed=()
           for pkg in $(nix eval --json .#packages.x86_64-linux --apply builtins.attrNames | jq -r '.[]'); do
             echo "::group::Building $pkg"
-            if ! nix build ".#packages.x86_64-linux.$pkg" -L; then
+            if ! nix build ".#packages.x86_64-linux.$pkg" -L --option substituters "https://cache.nixos.org"; then
               failed+=("$pkg")
             fi
             echo "::endgroup::"
