@@ -3,14 +3,21 @@ name: Build XLibre and publish to Cachix
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      update_inputs:
+        description: Update flake inputs to latest instead of using the pinned lock
+        type: boolean
+        default: false
   schedule:
-    # weekly, to track upstream overlay updates
+    # weekly, rebuilds from the pinned flake.lock (does not advance it)
     - cron: '0 6 * * 0'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,8 +34,13 @@ jobs:
           name: sanjihiko-xlibre
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
-      - name: Update flake.lock
-        run: nix flake update xlibre-overlay
+      - name: Lock flake inputs
+        run: |
+          if [ "${{ inputs.update_inputs }}" = "true" ]; then
+            nix flake update
+          else
+            nix flake lock
+          fi
 
       - name: Build all XLibre packages
         run: |
@@ -46,3 +58,13 @@ jobs:
           fi
 
       # cachix-action auto-pushes everything built above (watch-store on by default)
+
+      - name: Commit flake.lock if changed
+        run: |
+          if ! git diff --quiet -- flake.lock; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add flake.lock
+            git commit -m "chore: update flake.lock"
+            git push
+          fi
