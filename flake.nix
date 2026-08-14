@@ -12,14 +12,29 @@
   };
 
   inputs = {
+    # Our own recent nixpkgs, used only to override the unstable
+    # overlay's pin below - deliberately NOT applied to stable.
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     # main: upstream's branch pinned for stable NixOS (nixos-26.05).
+    # No follows here: keeps upstream's own tested/pinned nixpkgs.
     xlibre-overlay-stable.url = "git+https://codeberg.org/takagemacoed/xlibre-overlay?ref=main";
 
     # dev-26.11: upstream's branch tracking nixos-unstable/26.11.
-    xlibre-overlay-unstable.url = "git+https://codeberg.org/takagemacoed/xlibre-overlay?ref=dev-26.11";
+    # Follows our recent nixpkgs deliberately: upstream updates this
+    # branch's own pin infrequently (no unstable test machine on their
+    # end), so staying on their pin means we'd rarely match a fresh
+    # personal nixos-unstable. This trades upstream's safety margin for
+    # freshness - if a future nixpkgs refactor breaks it, only the
+    # unstable-* builds fail (the tolerant build loop handles that
+    # per-package), stable-* is unaffected either way.
+    xlibre-overlay-unstable = {
+      url = "git+https://codeberg.org/takagemacoed/xlibre-overlay?ref=dev-26.11";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, xlibre-overlay-stable, xlibre-overlay-unstable }:
+  outputs = { self, nixpkgs, xlibre-overlay-stable, xlibre-overlay-unstable }:
     let
       system = "x86_64-linux";
 
@@ -31,8 +46,8 @@
           (builtins.attrNames pkgs));
     in
     {
-      # Passed through as-is, each built against its own upstream's
-      # pinned nixpkgs. No follows, no re-applying overlays ourselves.
+      # stable stays on upstream's own pinned nixpkgs; unstable follows
+      # ours (see comment on the input above).
       packages.${system} =
         (prefixPackages "stable" xlibre-overlay-stable.packages.${system})
         // (prefixPackages "unstable" xlibre-overlay-unstable.packages.${system});
